@@ -4,6 +4,10 @@ library(jsonlite)
 library(httpuv)
 #install.packages("httr")
 library(httr)
+#install.packages("plotly")
+install.packages("plotly")
+require(devtools)
+library(plotly)
 
 # Can be github, linkedin etc depending on application
 oauth_endpoints("github")
@@ -18,7 +22,7 @@ github_token <- oauth2.0_token(oauth_endpoints("github"), myapp)
 
 # Use API
 gtoken <- config(token = github_token)
-req <- GET("https://api.github.com/users/jtleek/repos", gtoken)
+req <- GET("https://api.github.com/users/oconnr29/repos", gtoken)
 
 # Take action on http error
 stop_for_status(req)
@@ -30,4 +34,23 @@ json1 = content(req)
 gitDF = jsonlite::fromJSON(jsonlite::toJSON(json1))
 
 # Subset data.frame
-gitDF[gitDF$full_name == "jtleek/datasharing", "created_at"] 
+gitDF[gitDF$full_name == "oconnr29/datasharing", "created_at"] 
+
+#Social Graph
+
+#Gets my data 
+myData = fromJSON("https://api.github.com/users/oconnr29")
+
+#Displays my follower count
+myData$followers
+
+#Gives the usernames of all my followers
+followers = fromJSON("https://api.github.com/users/oconnr29/followers")
+followers$login
+
+#Displays my following count
+myData$following
+
+#Gives the usernames of all the people I follow
+following = fromJSON("https://api.github.com/users/oconnr29/following")
+following$login
