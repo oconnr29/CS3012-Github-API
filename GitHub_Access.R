@@ -127,3 +127,60 @@ api_create(MyPlot, filename = "Following vs Followers")
 colSums(Filter(is.numeric, AllUsersDF))
 
 
+#LANGUAGES
+#The following code finds the most popular language for each user
+
+#Create empty vector
+Languages = c()
+
+#Loop through all the users
+for (i in 1:length(AllUsers))
+{
+  #Access each users repositories and save in a dataframe
+  RepositoriesUrl1 = paste("https://api.github.com/users/", AllUsers[i], "/repos", "?client_id=31fe11f083b34c20ec8a&client_secret=ed1254a820a3fea515081ec6b4722917a3b3a927", sep = "")
+  Repositories1 = GET(RepositoriesUrl1)
+  RepositoriesContent1 = content(Repositories1)
+  RepositoriesDF1 = jsonlite::fromJSON(jsonlite::toJSON(RepositoriesContent1))
+  
+  #Find names of all the repositories for the given user
+  RepositoriesNames = RepositoriesDF1$name
+  
+  #Loop through all the repositories of an individual user
+  for (j in 1: length(RepositoriesNames))
+  {
+    #Find all repositories and save in data frame
+    RepositoriesUrl2 = paste("https://api.github.com/repos/", AllUsers[i], "/", RepositoriesNames[j], "?client_id=31fe11f083b34c20ec8a&client_secret=ed1254a820a3fea515081ec6b4722917a3b3a927", sep = "")
+    Repositories2 = GET(RepositoriesUrl2)
+    RepositoriesContent2 = content(Repositories2)
+    RepositoriesDF2 = jsonlite::fromJSON(jsonlite::toJSON(RepositoriesContent2))
+    
+    #Find the language which each repository was written in
+    Language = RepositoriesDF2$language
+    
+    #Skip a repository if it has no language
+    if (length(Language) != 0 && Language != "<NA>")
+    {
+      #Add the languages to a list
+      Languages[length(Languages)+1] = Language
+    }
+    next
+  }
+  next
+}
+
+#Save the top 20 languages in a table
+LanguageTable = sort(table(Languages), increasing=TRUE)
+LanguageTableTop20 = LanguageTable[(length(LanguageTable)-19):length(LanguageTable)]
+
+#Save this table as a data frame
+LanguageDF = as.data.frame(LanguageTableTop20)
+
+#Plot the data frame of languages
+MyPlot2 = plot_ly(data = LanguageDF, x = LanguageDF$Languages, y = LanguageDF$Freq, type = "bar")
+MyPlot2
+
+#Upload the plot to Plotly
+Sys.setenv("plotly_username" = "oconnr29")
+Sys.setenv("plotly_api_key" = "gH0dbnJx7vobW20RxLQw")
+api_create(MyPlot2, filename = "20 Most Popular Languages")
+#PLOTLY LINK: https://plot.ly/~oconnr29/3
