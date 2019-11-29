@@ -5,9 +5,12 @@ library(httpuv)
 #install.packages("httr")
 library(httr)
 #install.packages("plotly")
-install.packages("plotly")
-require(devtools)
 library(plotly)
+#install.packages("devtools")
+require(devtools)
+
+#install.packages("httr")
+require(httr)
 
 # Can be github, linkedin etc depending on application
 oauth_endpoints("github")
@@ -16,41 +19,111 @@ oauth_endpoints("github")
 myapp <- oauth_app(appname = "Accessing_Github",
                    key = "31fe11f083b34c20ec8a",
                    secret = "ed1254a820a3fea515081ec6b4722917a3b3a927")
+  
+  x = jsonlite::fromJSON(jsonlite::toJSON(content(GET("https://api.github.com/users/jinzhu/followers?client_id=31fe11f083b34c20ec8a&client_secret=ed1254a820a3fea515081ec6b4722917a3b3a927"))))
+  # Convert to a data.frame
+gitDF = jsonlite::fromJSON(jsonlite::toJSON(x))
 
-# Get OAuth credentials
-github_token <- oauth2.0_token(oauth_endpoints("github"), myapp)
+#vector of usernames
+Id = x$login
+UserIds = c(Id)
 
-# Use API
-gtoken <- config(token = github_token)
-req <- GET("https://api.github.com/users/oconnr29/repos", gtoken)
+#Create empty vectors and data frame
+AllUsers = c()
 
-# Take action on http error
-stop_for_status(req)
+AllUsersDF = data.frame(
+  Username = integer(),
+  Following = integer(),
+  Followers = integer(),
+  Repositories = integer(),
+  DateCreated = integer()
+)
 
-# Extract content from a request
-json1 = content(req)
+#Loop through usernames to find users to add to the list
+for (i in 1:length(UserIds))
+{
+  #Retrieve users following list
+  FollowingUrl1 = paste("https://api.github.com/users/", UserIds[i], "/following?client_id=31fe11f083b34c20ec8a&client_secret=ed1254a820a3fea515081ec6b4722917a3b3a927", sep = "")
+  Following1 = GET(FollowingUrl1)
+  FollowingContent1 = content(Following1)
+  
+  #Skip user if they don't have any followings
+  if (length(FollowingContent1) == 0)
+  {
+    next
+  }
+  
+  #Add followings to a dataframe and get usernames
+  FollowingDF1 = jsonlite::fromJSON(jsonlite::toJSON(FollowingContent1))
+  FollowingLogin = FollowingDF1$login
+  
+  #Loop through following
+  for (j in 1:length(FollowingLogin))
+  {
+    #Check that the user is not already in
+    if (is.element(FollowingLogin[j], AllUsers) == FALSE)
+    {
+      #Add user to list of users
+      AllUsers[length(AllUsers) + 1] = FollowingLogin[j]
+      
+      #Get data on each user
+      FollowingUrl2 = paste("https://api.github.com/users/", FollowingLogin[j], "?client_id=31fe11f083b34c20ec8a&client_secret=ed1254a820a3fea515081ec6b4722917a3b3a927", sep = "")
+      Following2 = GET(FollowingUrl2)
+      FollowingContent2 = content(Following2)
+      FollowingDF2 = jsonlite::fromJSON(jsonlite::toJSON(FollowingContent2))
+      
+      #Each users following
+      FollowingNumber = FollowingDF2$following
+      
+      #Each users followers
+      FollowersNumber = FollowingDF2$followers
+      
+      #Each users number of repositories
+      ReposNumber = FollowingDF2$public_repos
+      
+      #Year which each user joined Github
+      YearCreated = substr(FollowingDF2$created_at, start = 1, stop = 4)
+      
+      #Add users data to dataframe
+      AllUsersDF[nrow(AllUsersDF) + 1, ] = c(FollowingLogin[j], FollowingNumber, FollowersNumber, ReposNumber, YearCreated)
+      
+    }
+    next
+  }
+  #Stop when there are more than 400 users
+  if(length(AllUsers) > 400)
+  {
+    j = 9999999999999
+  }
+  next
+}
 
-# Convert to a data.frame
-gitDF = jsonlite::fromJSON(jsonlite::toJSON(json1))
+AllUsersDF = unique(AllUsersDF)
 
-# Subset data.frame
-gitDF[gitDF$full_name == "oconnr29/datasharing", "created_at"] 
+#Produce the scatter plot of Followers vs Number of Repositories,
+#colour coded by the data which they joined Github
+MyPlot1 = plot_ly(data = AllUsersDF, x = ~Repositories, y = ~Followers, 
+                  text = ~paste("Followers: ", Followers, "<br>Repositories: ", 
+                                Repositories, "<br>Date Created:", DateCreated), color = ~DateCreated)
+MyPlot1
+#Upload the plot to Plotly
+Sys.setenv("plotly_username" = "oconnr29")
+Sys.setenv("plotly_api_key" = "gH0dbnJx7vobW20RxLQw")
+api_create(MyPlot1, filename = "Followers vs Repositories by Date")
+#PLOTLY LINK: https://plot.ly/~oconnr29/1
 
-#Social Graph
+#Produce a scatter plot of Followers vs Following
+MyPlot = plot_ly(data = AllUsersDF, x = ~Following, y = ~Followers, text = ~paste("Following: ", Following, 
+                                                                                  "<br>Followers: ", Followers))
+MyPlot
 
-#Gets my data 
-myData = fromJSON("https://api.github.com/users/oconnr29")
+#Upload the plot to Plotly
+Sys.setenv("plotly_username" = "oconnr29")
+Sys.setenv("plotly_api_key" = "gH0dbnJx7vobW20RxLQw")
+api_create(MyPlot, filename = "Following vs Followers")
+#PLOTLY LINK: https://plot.ly/~oconnr29/5
 
-#Displays my follower count
-myData$followers
+#Sums of columns for the AllUsersDF dataframe
+colSums(Filter(is.numeric, AllUsersDF))
 
-#Gives the usernames of all my followers
-followers = fromJSON("https://api.github.com/users/oconnr29/followers")
-followers$login
 
-#Displays my following count
-myData$following
-
-#Gives the usernames of all the people I follow
-following = fromJSON("https://api.github.com/users/oconnr29/following")
-following$login
